@@ -30,6 +30,7 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.tree.ImmutableNode;
 import org.apache.james.DefaultUserEntityValidator;
 import org.apache.james.UserEntityValidator;
+import org.apache.james.core.AuthLogger;
 import org.apache.james.core.Domain;
 import org.apache.james.core.MailAddress;
 import org.apache.james.core.Username;
@@ -153,6 +154,7 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
             .map(x -> x.verifyPassword(password))
             .orElseGet(() -> {
                 LOGGER.info("Could not retrieve user {}. Password is unverified.", name);
+                AuthLogger.LOGGER.error("Could not retrieve user {}. Password is unverified.", name);
                 return false;
             });
 
@@ -162,6 +164,10 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+        }
+
+        if(!isVerified){
+            AuthLogger.LOGGER.error("Auth failed, {}", name.asString());
         }
 
         return isVerified;

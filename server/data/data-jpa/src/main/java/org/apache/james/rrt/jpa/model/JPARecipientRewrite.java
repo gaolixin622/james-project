@@ -108,7 +108,7 @@ public class JPARecipientRewrite {
      * The target address. column name is chosen to be compatible with the
      * JDBCRecipientRewriteTableList.
      */
-    @Column(name = "TARGET_ADDRESS", nullable = false, length = 100)
+    @Column(name = "TARGET_ADDRESS", nullable = false, length = 1024)
     private String targetAddress = "";
     
     /**
