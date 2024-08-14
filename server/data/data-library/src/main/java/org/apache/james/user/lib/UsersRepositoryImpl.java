@@ -168,6 +168,8 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
 
         if(!isVerified){
             AuthLogger.LOGGER.error("Auth failed, {}", name.asString());
+        }else {
+            AuthLogger.LOGGER.error("Auth success, {}", name.asString());
         }
 
         return isVerified;
