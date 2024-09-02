@@ -3603,33 +3603,6 @@
                 </dependencies>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <configuration>
-                    <configLocation>checkstyle.xml</configLocation>
-                    <failOnViolation>true</failOnViolation>
-                    <logViolationsToConsole>true</logViolationsToConsole>
-                    <includeTestResources>true</includeTestResources>
-                    <suppressionsLocation>checkstyle-suppressions.xml</suppressionsLocation>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>com.puppycrawl.tools</groupId>
-                        <artifactId>checkstyle</artifactId>
-                        <version>10.3.4</version>
-                    </dependency>
-                </dependencies>
-                <executions>
-                    <execution>
-                        <id>check-style</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <phase>compile</phase>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>pl.project13.maven</groupId>
                 <artifactId>git-commit-id-plugin</artifactId>
                 <configuration>

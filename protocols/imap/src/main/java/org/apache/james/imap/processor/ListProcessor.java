@@ -42,6 +42,7 @@ import org.apache.james.imap.api.message.Capability;
 import org.apache.james.imap.api.message.StatusDataItems;
 import org.apache.james.imap.api.message.response.ImapResponseMessage;
 import org.apache.james.imap.api.message.response.StatusResponseFactory;
+import org.apache.james.imap.api.process.DefaultMailboxTyper;
 import org.apache.james.imap.api.process.ImapSession;
 import org.apache.james.imap.api.process.MailboxType;
 import org.apache.james.imap.api.process.MailboxTyper;
@@ -372,8 +373,20 @@ public class ListProcessor<T extends ListRequest> extends AbstractMailboxProcess
      * @return MailboxType value
      */
     protected MailboxType getMailboxType(ListRequest listRequest, ImapSession session, MailboxPath path) {
-        if (listRequest.getReturnOptions().contains(ListRequest.ListReturnOption.SPECIAL_USE)) {
-            return mailboxTyper.getMailboxType(session, path);
+        LOGGER.info("path:{}", path.asString());
+        LOGGER.info("user:{}", session.getUserName());
+
+        if(listRequest.getReturnOptions()==null){
+            LOGGER.info("listRequest.getReturnOptions() is null");
+        }
+
+        if (listRequest.getReturnOptions()!=null && listRequest.getReturnOptions().contains(ListRequest.ListReturnOption.SPECIAL_USE)) {
+            if(mailboxTyper==null){
+                LOGGER.info("mailboxTyper is null");
+                return new DefaultMailboxTyper().getMailboxType(session, path);
+            }else {
+                return mailboxTyper.getMailboxType(session, path);
+            }
         }
         return MailboxType.OTHER;
     }

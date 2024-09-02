@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Optional;
 
+import org.apache.james.core.AuthLogger;
 import org.apache.james.core.Username;
 import org.apache.james.protocols.api.Protocol;
 import org.apache.james.protocols.api.ProtocolSession;
@@ -51,6 +52,7 @@ public interface ProtocolMDCContextFactory {
     MDCBuilder withContext(ProtocolSession protocolSession);
 
     static MDCBuilder mdcContext(Protocol protocol, ChannelHandlerContext ctx) {
+        AuthLogger.LOGGER.info(MDCBuilder.PROTOCOL+"=" + protocol.getName() + "," +MDCBuilder.IP + "=" + retrieveIp(ctx));
         MDCBuilder mdc = MDCBuilder.create()
             .addToContext(MDCBuilder.PROTOCOL, protocol.getName())
             .addToContext(MDCBuilder.IP, retrieveIp(ctx));
