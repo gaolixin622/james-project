@@ -21,6 +21,8 @@
 
 package org.apache.james.protocols.smtp.core.esmtp;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,24 +35,28 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.AttributeKey;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.james.core.AuthLogger;
 import org.apache.james.core.Username;
-import org.apache.james.protocols.api.OidcSASLConfiguration;
-import org.apache.james.protocols.api.Request;
-import org.apache.james.protocols.api.Response;
+import org.apache.james.protocols.api.*;
 import org.apache.james.protocols.api.handler.CommandHandler;
 import org.apache.james.protocols.api.handler.ExtensibleHandler;
 import org.apache.james.protocols.api.handler.LineHandler;
 import org.apache.james.protocols.api.handler.WiringException;
+import org.apache.james.protocols.netty.BasicChannelInboundHandler;
 import org.apache.james.protocols.smtp.SMTPResponse;
 import org.apache.james.protocols.smtp.SMTPRetCode;
 import org.apache.james.protocols.smtp.SMTPSession;
+import org.apache.james.protocols.smtp.core.SMTPMDCContextFactory;
 import org.apache.james.protocols.smtp.dsn.DSNStatus;
 import org.apache.james.protocols.smtp.hook.AuthHook;
 import org.apache.james.protocols.smtp.hook.HookResult;
 import org.apache.james.protocols.smtp.hook.HookResultHook;
 import org.apache.james.protocols.smtp.hook.HookReturnCode;
 import org.apache.james.protocols.smtp.hook.MailParametersHook;
+import org.apache.james.util.MDCBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +64,8 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+
+import static org.apache.james.protocols.api.ProtocolSession.State.Connection;
 
 
 /**
@@ -141,7 +149,12 @@ public class AuthCmdHandler
      */
     @Override
     public Response onCommand(SMTPSession session, Request request) {
-        return doAUTH(session, request.getArgument());
+        MDCBuilder mdcBuilder = mdc(session);
+        try (Closeable closeable = mdcBuilder.build()) {
+            return doAUTH(session, request.getArgument());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
@@ -368,8 +381,18 @@ public class AuthCmdHandler
         return res;
     }
 
+    private MDCBuilder mdc(SMTPSession session) {
+        SMTPMDCContextFactory smtpmdcContextFactory = new SMTPMDCContextFactory();
+        return Optional.ofNullable(session)
+                .flatMap(s -> s.getAttachment(BasicChannelInboundHandler.MDC_ATTRIBUTE_KEY, Connection))
+                .map(mdc -> smtpmdcContextFactory.withContext(session)
+                        .addToContext(mdc))
+                .orElseGet(MDCBuilder::create);
+    }
+
     protected Response doAuthTest(SMTPSession session, Username username, String pass, String authType) {
         if ((username == null) || (pass == null)) {
+            AuthLogger.LOGGER.error("Auth failed, {}", "null");
             return new SMTPResponse(SMTPRetCode.SYNTAX_ERROR_ARGUMENTS,"Could not decode parameters for AUTH " + authType);
         }
 
@@ -384,9 +407,11 @@ public class AuthCmdHandler
                 if (res != null) {
                     if (SMTPRetCode.AUTH_FAILED.equals(res.getRetCode())) {
                         AUTHENTICATION_DEDICATED_LOGGER.info("AUTH method {} failed", authType);
+                        AuthLogger.LOGGER.error("Auth failed, {}", username.asString());
                     } else if (SMTPRetCode.AUTH_OK.equals(res.getRetCode())) {
                         // TODO: Make this string a more useful debug message
                         AUTHENTICATION_DEDICATED_LOGGER.debug("AUTH method {} succeeded", authType);
+                        AuthLogger.LOGGER.info("Auth success, {}", username.asString());
                     }
                     return res;
                 }

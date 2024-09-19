@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
+import org.apache.james.core.AuthLogger;
 import org.apache.james.protocols.api.CommandDetectionSession;
 import org.apache.james.protocols.api.Protocol;
 import org.apache.james.protocols.api.ProtocolSession;
@@ -91,6 +92,8 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        AuthLogger.LOGGER.info("BasicChannelInboundHandler.channelActive start");
+
         MDCBuilder boundMDC = mdcContextFactory.onBound(protocol, ctx);
         try (Closeable closeable = boundMDC.build()) {
             ProtocolSession session = createSession(ctx);
@@ -101,6 +104,8 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
             List<ProtocolHandlerResultHandler> resultHandlers = chain.getHandlers(ProtocolHandlerResultHandler.class);
 
             LOGGER.info("Connection established from {}", session.getRemoteAddress().getAddress().getHostAddress());
+            AuthLogger.LOGGER.info("Connection established from {}", session.getRemoteAddress().getAddress().getHostAddress());
+
             for (ConnectHandler cHandler : connectHandlers) {
                 long start = System.currentTimeMillis();
                 Response response = cHandler.onConnect(session);
@@ -116,6 +121,8 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
             }
 
             super.channelActive(ctx);
+            AuthLogger.LOGGER.info("BasicChannelInboundHandler.channelActive end");
+
         }
     }
 

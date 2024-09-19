@@ -45,7 +45,9 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.james.core.AuthLogger;
 import org.apache.james.core.MailAddress;
+import org.apache.james.util.ExceptionUtil;
 import org.apache.mailet.DsnParameters;
 import org.apache.mailet.HostAddress;
 import org.apache.mailet.Mail;
@@ -129,7 +131,10 @@ public class MailDelivrerToHost {
             LOGGER.info("Mail ({}) with messageId {} sent successfully to {} at {} from {} for {}",
                 mail.getName(), getMessageId(mail), outgoingMailServer.getHostName(),
                 outgoingMailServer.getHost(), props.get(inContext(session, "mail.smtp.from")), mail.getRecipients());
-        } finally {
+        }catch (Exception ex){
+            AuthLogger.LOGGER.error(ExceptionUtil.getExceptionDetail(ex));
+            throw ex;
+        }finally {
             closeTransport(mail, outgoingMailServer, transport);
             releaseSession(outgoingMailServer, session);
         }
