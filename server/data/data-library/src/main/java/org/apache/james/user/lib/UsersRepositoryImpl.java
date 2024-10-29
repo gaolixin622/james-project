@@ -43,6 +43,7 @@ import org.apache.james.user.api.UsersRepository;
 import org.apache.james.user.api.UsersRepositoryException;
 import org.apache.james.user.api.model.User;
 import org.apache.james.util.DurationParser;
+import org.apache.james.util.ExceptionUtil;
 import org.reactivestreams.Publisher;
 import org.slf4j.LoggerFactory;
 
@@ -155,6 +156,8 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
             .orElseGet(() -> {
                 LOGGER.info("Could not retrieve user {}. Password is unverified.", name);
                 AuthLogger.LOGGER.error("Could not retrieve user {}. Password is unverified.", name);
+
+                AuthLogger.LOGGER.info(ExceptionUtil.getCallStack());
                 return false;
             });
 

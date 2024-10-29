@@ -43,6 +43,7 @@ import org.apache.james.protocols.api.handler.DisconnectHandler;
 import org.apache.james.protocols.api.handler.LineHandler;
 import org.apache.james.protocols.api.handler.ProtocolHandlerChain;
 import org.apache.james.protocols.api.handler.ProtocolHandlerResultHandler;
+import org.apache.james.util.ExceptionUtil;
 import org.apache.james.util.MDCBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,18 +170,25 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof HAProxyMessage) {
-            handleHAProxyMessage(ctx, (HAProxyMessage) msg);
-            return;
-        }
-        ChannelInboundHandlerAdapter override = behaviourOverrides.peekFirst();
-        if (override != null) {
-            override.channelRead(ctx, msg);
-            return;
+        try (Closeable closeable = mdc(ctx).build()) {
+            if (msg instanceof HAProxyMessage) {
+                handleHAProxyMessage(ctx, (HAProxyMessage) msg);
+                return;
+            }
+            ChannelInboundHandlerAdapter override = behaviourOverrides.peekFirst();
+            if (override != null) {
+                override.channelRead(ctx, msg);
+                return;
+            }
         }
 
         try (Closeable closeable = mdc(ctx).build()) {
             ProtocolSession pSession = (ProtocolSession) ctx.channel().attr(SESSION_ATTRIBUTE_KEY).get();
+            try {
+                AuthLogger.LOGGER.info("channelRead start, {}", pSession.getRemoteAddress().getAddress().getHostAddress());
+            }catch (Exception e){
+                AuthLogger.LOGGER.error(ExceptionUtil.getExceptionDetail(e));
+            }
 
             if (lineHandler.isPresent()) {
                 ByteBuf buf = (ByteBuf) msg;
@@ -203,11 +211,23 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
 
             ((ByteBuf) msg).release();
             super.channelReadComplete(ctx);
+
+            try {
+                AuthLogger.LOGGER.info("channelRead end, {}", pSession.getRemoteAddress().getAddress().getHostAddress());
+            }catch (Exception e){
+                AuthLogger.LOGGER.error(ExceptionUtil.getExceptionDetail(e));
+            }
         }
     }
 
     private void handleHAProxyMessage(ChannelHandlerContext ctx, HAProxyMessage haproxyMsg) throws Exception {
         ProtocolSession pSession = (ProtocolSession) ctx.channel().attr(SESSION_ATTRIBUTE_KEY).get();
+        try {
+            AuthLogger.LOGGER.info("handleHAProxyMessage,{}", pSession.getRemoteAddress().getAddress().getHostAddress());
+        }catch (Exception e){
+            AuthLogger.LOGGER.error(ExceptionUtil.getExceptionDetail(e));
+        }
+
         if (haproxyMsg.proxiedProtocol().equals(HAProxyProxiedProtocol.TCP4) || haproxyMsg.proxiedProtocol().equals(HAProxyProxiedProtocol.TCP6)) {
 
             ProxyInformation proxyInformation = new ProxyInformation(
