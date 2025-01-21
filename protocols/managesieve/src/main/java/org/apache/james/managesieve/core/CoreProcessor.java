@@ -21,6 +21,7 @@
 package org.apache.james.managesieve.core;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.james.core.Username;
 import org.apache.james.managesieve.api.AuthenticationException;
 import org.apache.james.managesieve.api.AuthenticationProcessor;
@@ -175,10 +177,20 @@ public class CoreProcessor implements CoreCommands {
         }
     }
 
+    public static boolean containsNonAscii(String input) {
+        // 正则表达式：匹配非 ASCII 字符
+        return input.matches(".*[^\\x00-\\x7F].*");
+    }
     @Override
     public String putScript(Session session, String name, String content) {
         return handleCommandExecution(() -> {
             authenticationCheck(session);
+            if(!parser.parse(content).isEmpty()){
+                if(containsNonAscii(content)){
+                    return "不能包含非英文字母,字符";
+                }
+                return "invalid format";
+            }
             sieveRepository.putScript(session.getUser(), new ScriptName(name), new ScriptContent(content));
             return manageWarnings(parser.parse(content));
         }, session);
@@ -345,5 +357,37 @@ public class CoreProcessor implements CoreCommands {
 
     private String sanitizeString(String message) {
         return Joiner.on("\r\n").join(Splitter.on('\n').split(message));
+    }
+
+
+    public static void main(String[] args) throws UnsupportedEncodingException {
+        //C: PUTSCRIPT "managesieve" {315+}
+        String a = "require [\"fileinto\"];\n" +
+                "# rule:[a]\n" +
+                "if allof (header :contains \"subject\" \"b\")\n" +
+                "{\n" +
+                "        fileinto \"DMARC\";\n" +
+                "}\n" +
+                "# rule:[中文中文中文中文中文中文中文中文中文中文中文中文]\n" +
+                "if allof (header :contains \"subject\" \"中文中文中文中文中文中文中文中文中文中文\")\n" +
+                "{\n" +
+                "        fileinto \"DMARC\";\n" +
+                "}";
+
+        //C: PUTSCRIPT "managesieve" {211+}
+        String b = "require [\"fileinto\"];\n" +
+                "# rule:[a]\n" +
+                "if allof (header :contains \"subject\" \"b\")\n" +
+                "{\n" +
+                "        fileinto \"DMARC\";\n" +
+                "}\n" +
+                "# rule:[11111111111111]\n" +
+                "if allof (header :contains \"subject\" \"11111111111111\")\n" +
+                "{\n" +
+                "        fileinto \"DMARC\";\n" +
+                "}";
+        System.out.println(a.getBytes("utf-8").length);
+        System.out.println(b.getBytes("utf-8").length);
+
     }
 }
