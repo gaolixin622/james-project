@@ -152,7 +152,7 @@ public class CommandDispatcher<SessionT extends ProtocolSession> implements Exte
      * @return response
      */
     protected Response dispatchCommandHandlers(SessionT session, Request request) {
-        LOGGER.info("{} received: {} {}", getClass().getName(), request.getCommand(), request.getArgument());
+        LOGGER.info("received: {} {}", request.getCommand(), request.getArgument());
         List<CommandHandler<SessionT>> commandHandlers = getCommandHandlers(request.getCommand(), session);
         // fetch the command handlers registered to the command
 
@@ -169,14 +169,14 @@ public class CommandDispatcher<SessionT extends ProtocolSession> implements Exte
                 // now process the result handlers
                 response = executeResultHandlers(session, response, executionTime, commandHandler, rHandlers.iterator());
                 if (response != null) {
-                    LOGGER.info("{} response: {}", getClass().getName(), response);
+                    LOGGER.info("response: {}", response);
                     return response;
                 }
             }
 
 
         }
-        LOGGER.info("{} response: {}", getClass().getName(), null);
+        LOGGER.info("response: {}", "NULL");
         return null;
     }
 
