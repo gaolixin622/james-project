@@ -20,6 +20,7 @@
 package org.apache.james.user.lib.model;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 
 import org.apache.james.core.Username;
 import org.apache.james.user.api.model.User;
@@ -91,6 +92,25 @@ public class DefaultUser implements User, Serializable {
         return true;
     }
 
+    @Override
+    public void setIsLocked(Integer isLocked) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Integer getIsLocked() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setLockDt(Timestamp lockDt) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Timestamp getLockDt() {
+        throw new UnsupportedOperationException();
+    }
 
 
     /**

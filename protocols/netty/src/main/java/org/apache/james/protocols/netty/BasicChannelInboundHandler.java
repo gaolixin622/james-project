@@ -93,8 +93,6 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        AuthLogger.LOGGER.info("BasicChannelInboundHandler.channelActive start");
-
         MDCBuilder boundMDC = mdcContextFactory.onBound(protocol, ctx);
         try (Closeable closeable = boundMDC.build()) {
             ProtocolSession session = createSession(ctx);
@@ -105,8 +103,6 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
             List<ProtocolHandlerResultHandler> resultHandlers = chain.getHandlers(ProtocolHandlerResultHandler.class);
 
             LOGGER.info("Connection established from {}", session.getRemoteAddress().getAddress().getHostAddress());
-            AuthLogger.LOGGER.info("Connection established from {}", session.getRemoteAddress().getAddress().getHostAddress());
-
             for (ConnectHandler cHandler : connectHandlers) {
                 long start = System.currentTimeMillis();
                 Response response = cHandler.onConnect(session);
@@ -184,11 +180,6 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
 
         try (Closeable closeable = mdc(ctx).build()) {
             ProtocolSession pSession = (ProtocolSession) ctx.channel().attr(SESSION_ATTRIBUTE_KEY).get();
-            try {
-                AuthLogger.LOGGER.info("channelRead start, {}", pSession.getRemoteAddress().getAddress().getHostAddress());
-            }catch (Exception e){
-                AuthLogger.LOGGER.error(ExceptionUtil.getExceptionDetail(e));
-            }
 
             if (lineHandler.isPresent()) {
                 ByteBuf buf = (ByteBuf) msg;
@@ -211,22 +202,11 @@ public class BasicChannelInboundHandler extends ChannelInboundHandlerAdapter imp
 
             ((ByteBuf) msg).release();
             super.channelReadComplete(ctx);
-
-            try {
-                AuthLogger.LOGGER.info("channelRead end, {}", pSession.getRemoteAddress().getAddress().getHostAddress());
-            }catch (Exception e){
-                AuthLogger.LOGGER.error(ExceptionUtil.getExceptionDetail(e));
-            }
         }
     }
 
     private void handleHAProxyMessage(ChannelHandlerContext ctx, HAProxyMessage haproxyMsg) throws Exception {
         ProtocolSession pSession = (ProtocolSession) ctx.channel().attr(SESSION_ATTRIBUTE_KEY).get();
-        try {
-            AuthLogger.LOGGER.info("handleHAProxyMessage,{}", pSession.getRemoteAddress().getAddress().getHostAddress());
-        }catch (Exception e){
-            AuthLogger.LOGGER.error(ExceptionUtil.getExceptionDetail(e));
-        }
 
         if (haproxyMsg.proxiedProtocol().equals(HAProxyProxiedProtocol.TCP4) || haproxyMsg.proxiedProtocol().equals(HAProxyProxiedProtocol.TCP6)) {
 

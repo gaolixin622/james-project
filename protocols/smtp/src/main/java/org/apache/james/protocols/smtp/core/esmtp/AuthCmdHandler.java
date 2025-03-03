@@ -392,7 +392,6 @@ public class AuthCmdHandler
 
     protected Response doAuthTest(SMTPSession session, Username username, String pass, String authType) {
         if ((username == null) || (pass == null)) {
-            AuthLogger.LOGGER.error("Auth failed, {}", "null");
             return new SMTPResponse(SMTPRetCode.SYNTAX_ERROR_ARGUMENTS,"Could not decode parameters for AUTH " + authType);
         }
 
@@ -407,11 +406,9 @@ public class AuthCmdHandler
                 if (res != null) {
                     if (SMTPRetCode.AUTH_FAILED.equals(res.getRetCode())) {
                         AUTHENTICATION_DEDICATED_LOGGER.info("AUTH method {} failed", authType);
-                        AuthLogger.LOGGER.error("Auth failed, {}", username.asString());
                     } else if (SMTPRetCode.AUTH_OK.equals(res.getRetCode())) {
                         // TODO: Make this string a more useful debug message
                         AUTHENTICATION_DEDICATED_LOGGER.debug("AUTH method {} succeeded", authType);
-                        AuthLogger.LOGGER.info("Auth success, {}", username.asString());
                     }
                     return res;
                 }

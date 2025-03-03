@@ -19,12 +19,19 @@
 
 package org.apache.james.user.lib;
 
+import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.apache.commons.configuration2.HierarchicalConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.tree.ImmutableNode;
@@ -52,6 +59,10 @@ import com.google.common.base.CharMatcher;
 public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository, Configurable {
     public static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(UsersRepositoryImpl.class);
     private static String ILLEGAL_USERNAME_CHARACTERS = "\"(),:; <>@[\\]";
+
+    private static Cache<String, Set<String>> errorCache = Caffeine.newBuilder()
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
 
     private final DomainList domainList;
     protected final T usersDAO;
@@ -152,14 +163,38 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
     @Override
     public boolean test(Username name, String password) throws UsersRepositoryException {
         boolean isVerified = usersDAO.getUserByName(name)
-            .map(x -> x.verifyPassword(password))
+            .map(x ->  x.getIsLocked()!=null && x.getIsLocked()==0 && x.verifyPassword(password))
             .orElseGet(() -> {
                 LOGGER.info("Could not retrieve user {}. Password is unverified.", name);
                 AuthLogger.LOGGER.error("Could not retrieve user {}. Password is unverified.", name);
-
-                AuthLogger.LOGGER.info(ExceptionUtil.getCallStack());
                 return false;
             });
+
+        if(!isVerified){
+            String key = name.asString();
+            Set<String> errorCount = errorCache.getIfPresent(key);
+            if(errorCount==null){
+                errorCount = new HashSet<>();
+                errorCache.put(key, errorCount);
+            }
+
+            errorCount.add(password);
+            if( errorCount.size()>5){
+                Optional<? extends User>  findUser =  usersDAO.getUserByName(name);
+                if(findUser.isPresent()){
+                    User x = findUser.get();
+                    x.setIsLocked(1);
+                    x.setLockDt(new Timestamp(System.currentTimeMillis()));
+                    try {
+                        usersDAO.updateUser(x);
+                        errorCache.invalidate(key);
+                    } catch (UsersRepositoryException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
+
 
         if (!isVerified && verifyFailureDelay > 0L) {
             try {

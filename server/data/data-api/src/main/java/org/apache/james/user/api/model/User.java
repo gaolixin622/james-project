@@ -21,6 +21,8 @@ package org.apache.james.user.api.model;
 
 import org.apache.james.core.Username;
 
+import java.sql.Timestamp;
+
 /**
  * Interface for objects representing users.
  */
@@ -51,4 +53,13 @@ public interface User {
      * @return true if newPass successfully added
      */
     boolean setPassword(String newPass);
+
+
+    void setIsLocked(Integer isLocked);
+    Integer getIsLocked();
+
+
+    void setLockDt(Timestamp lockDt);
+    Timestamp getLockDt();
+
 }

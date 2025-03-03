@@ -30,6 +30,8 @@ import com.unboundid.ldap.sdk.LDAPBindException;
 import com.unboundid.ldap.sdk.LDAPConnectionPool;
 import com.unboundid.ldap.sdk.ResultCode;
 
+import java.sql.Timestamp;
+
 /**
  * Encapsulates the details of a user as taken from an LDAP compliant directory.
  * Instances of this class are only applicable to the
@@ -111,6 +113,26 @@ public class ReadOnlyLDAPUser implements User {
     @Override
     public boolean setPassword(String newPass) {
         return false;
+    }
+
+    @Override
+    public void setIsLocked(Integer isLocked) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Integer getIsLocked() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setLockDt(Timestamp lockDt) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Timestamp getLockDt() {
+        throw new UnsupportedOperationException();
     }
 
     /**

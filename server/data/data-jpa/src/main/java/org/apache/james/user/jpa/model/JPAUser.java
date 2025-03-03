@@ -20,6 +20,8 @@
 package org.apache.james.user.jpa.model;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -116,6 +118,17 @@ public class JPAUser implements User {
     @Column(name = "PASSWORD_HASH_ALGORITHM", nullable = false, length = 100)
     private String alg;
 
+
+    @Basic
+    @Column(name = "LOCK_DT")
+    private Timestamp lockDt;
+
+
+    @Basic
+    @Column(name = "IS_LOCKED")
+    private Integer isLocked;
+
+
     protected JPAUser() {
     }
 
@@ -143,6 +156,8 @@ public class JPAUser implements User {
         return result;
     }
 
+
+
     @Override
     public boolean verifyPassword(String pass) {
         final boolean result;
@@ -152,6 +167,26 @@ public class JPAUser implements User {
             result = password != null && password.equals(hashPassword(pass, name, alg));
         }
         return result;
+    }
+
+    @Override
+    public Timestamp getLockDt() {
+        return lockDt;
+    }
+
+    @Override
+    public void setLockDt(Timestamp lockDt) {
+        this.lockDt = lockDt;
+    }
+
+    @Override
+    public Integer getIsLocked() {
+        return isLocked;
+    }
+
+    @Override
+    public void setIsLocked(Integer isLocked) {
+        this.isLocked = isLocked;
     }
 
     @Override

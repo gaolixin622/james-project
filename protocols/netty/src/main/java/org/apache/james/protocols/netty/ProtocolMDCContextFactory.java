@@ -52,7 +52,6 @@ public interface ProtocolMDCContextFactory {
     MDCBuilder withContext(ProtocolSession protocolSession);
 
     static MDCBuilder mdcContext(Protocol protocol, ChannelHandlerContext ctx) {
-        AuthLogger.LOGGER.info(MDCBuilder.PROTOCOL+"=" + protocol.getName() + "," +MDCBuilder.IP + "=" + retrieveIp(ctx));
         MDCBuilder mdc = MDCBuilder.create()
             .addToContext(MDCBuilder.PROTOCOL, protocol.getName())
             .addToContext(MDCBuilder.IP, retrieveIp(ctx));
