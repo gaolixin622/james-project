@@ -21,12 +21,8 @@ package org.apache.james.user.lib;
 
 import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
 
@@ -35,6 +31,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import org.apache.commons.configuration2.HierarchicalConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.tree.ImmutableNode;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.james.DefaultUserEntityValidator;
 import org.apache.james.UserEntityValidator;
 import org.apache.james.core.AuthLogger;
@@ -50,17 +47,22 @@ import org.apache.james.user.api.UsersRepository;
 import org.apache.james.user.api.UsersRepositoryException;
 import org.apache.james.user.api.model.User;
 import org.apache.james.util.DurationParser;
-import org.apache.james.util.ExceptionUtil;
+import org.apache.james.util.MDCBuilder;
 import org.reactivestreams.Publisher;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.CharMatcher;
+import org.slf4j.MDC;
 
 public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository, Configurable {
     public static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(UsersRepositoryImpl.class);
     private static String ILLEGAL_USERNAME_CHARACTERS = "\"(),:; <>@[\\]";
 
-    private static Cache<String, Set<String>> errorCache = Caffeine.newBuilder()
+    private static Cache<String, Set<String>> lockUserCache = Caffeine.newBuilder()
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
+
+    private static Cache<String, Set<String>> lockIpCache = Caffeine.newBuilder()
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
 
@@ -165,21 +167,44 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
         boolean isVerified = usersDAO.getUserByName(name)
             .map(x ->  x.getIsLocked()!=null && x.getIsLocked()==0 && x.verifyPassword(password))
             .orElseGet(() -> {
-                LOGGER.info("Could not retrieve user {}. Password is unverified.", name);
-                AuthLogger.LOGGER.error("Could not retrieve user {}. Password is unverified.", name);
+                LOGGER.info("Could not retrieve user {}. Password is unverified.", name.asString());
+                AuthLogger.LOGGER.error("Could not retrieve user {}. Password is unverified.", name.asString());
                 return false;
             });
 
+
+
+
+        if(!isVerified){
+            String remoteIp = MDC.get(MDCBuilder.IP);
+
+            if(StringUtils.isNotBlank(remoteIp)){
+                String key = remoteIp + "_" + name.asString();
+
+                Set<String> pwSet =  lockIpCache.getIfPresent(key);
+                if(pwSet==null){
+                    pwSet = new HashSet<>();
+                    lockIpCache.put(key, pwSet);
+                }
+
+                pwSet.add(password);
+
+                AuthLogger.LOGGER.error("{} times attempt, {}, {}, {}", pwSet.size(), remoteIp, name.asString(), password);
+
+            }
+        }
+
+
         if(!isVerified){
             String key = name.asString();
-            Set<String> errorCount = errorCache.getIfPresent(key);
+            Set<String> errorCount = lockUserCache.getIfPresent(key);
             if(errorCount==null){
                 errorCount = new HashSet<>();
-                errorCache.put(key, errorCount);
+                lockUserCache.put(key, errorCount);
             }
 
             errorCount.add(password);
-            if( errorCount.size()>5){
+            if(errorCount.size()>10){
                 Optional<? extends User>  findUser =  usersDAO.getUserByName(name);
                 if(findUser.isPresent()){
                     User x = findUser.get();
@@ -187,7 +212,7 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
                     x.setLockDt(new Timestamp(System.currentTimeMillis()));
                     try {
                         usersDAO.updateUser(x);
-                        errorCache.invalidate(key);
+                        lockUserCache.invalidate(key);
                     } catch (UsersRepositoryException e) {
                         throw new RuntimeException(e);
                     }
@@ -205,7 +230,7 @@ public class UsersRepositoryImpl<T extends UsersDAO> implements UsersRepository,
         }
 
         if(!isVerified){
-            AuthLogger.LOGGER.error("Auth failed, {}", name.asString());
+            AuthLogger.LOGGER.error("Auth failed, {}, {}", name.asString(), password);
         }else {
             AuthLogger.LOGGER.info("Auth success, {}", name.asString());
         }
